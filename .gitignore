@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# VS Code
+.vscode/
+
+# Pytest
+.pytest_cache/
+
+# Local secrets
+oauth2.json
