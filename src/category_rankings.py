@@ -88,7 +88,15 @@ def extract_all_teams(matchups_container):
             processed_stats = {}
             for stat_key, stat_value in team_stats.items():
                 if stat_key in ['fg_pct', 'ft_pct', '3ptm', 'pts', 'reb', 'ast', 'st', 'blk', 'to']:
-                    processed_stats[stat_key] = float(stat_value)
+                    # Skip empty values or convert to float
+                    if stat_value and stat_value.strip():
+                        try:
+                            processed_stats[stat_key] = float(stat_value)
+                        except ValueError:
+                            print(f"Warning: Could not convert '{stat_key}' value '{stat_value}' for team '{team_name}'")
+                            processed_stats[stat_key] = 0.0
+                    else:
+                        processed_stats[stat_key] = 0.0
 
             teams[team_name] = processed_stats
 
@@ -266,10 +274,20 @@ def main():
     lg = gm.to_league(league_id)
 
     # Get week to analyze
-    week = args.week if args.week else lg.current_week()
+    if args.week is None:
+        week = lg.current_week()
+        print(f"No week specified, using current week: {week}")
+    else:
+        week = args.week
+        print(f"Fetching data for Week {week}...")
 
     # Get matchups for specified week
-    raw_matchups = lg.matchups(week=week)
+    try:
+        raw_matchups = lg.matchups(week=week)
+    except Exception as e:
+        print(f"Error fetching week {week} data: {e}")
+        print("Try a different week number.")
+        return
 
     # Navigate to the actual matchups data
     league_data = raw_matchups['fantasy_content']['league']
@@ -278,6 +296,12 @@ def main():
 
     # Extract all 10 teams
     teams = extract_all_teams(matchups_container)
+
+    if not teams or len(teams) == 0:
+        print(f"No data found for Week {week}. The week may not have started yet.")
+        return
+
+    print(f"Found {len(teams)} teams with data.\n")
 
     # Rank teams in each category
     rankings = rank_teams_by_category(teams)

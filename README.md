@@ -108,7 +108,13 @@ make rankings
 # Show current matchup predictions
 make matchups
 
-# Run both rankings and matchups
+# Show possibility matrix (all teams vs all teams)
+make possibility
+
+# Predict matchups using historical data
+make predict
+
+# Run all main tools
 make all
 
 # First-time setup
@@ -126,9 +132,14 @@ You can specify week numbers and output formats:
 # Specific week
 make matchups WEEK=5
 make rankings WEEK=3
+make possibility WEEK=4
 
 # Simple matchup view (scores only, no category breakdown)
 make matchups FORMAT=simple
+
+# Predict matchups using different methods
+make predict METHOD=last3        # Use last 3 weeks average
+make predict METHOD=total WEEK=5 # Use season total for week 5
 
 # Combine parameters
 make matchups WEEK=4 FORMAT=simple
@@ -163,8 +174,10 @@ python -m src.show_matchups --help
 - **`src.quick_test`** - Verify API connection and list your leagues
 
 #### Current Week Analysis
-- **`src.show_matchups`** - Display all 5 matchups with mid-week category scores
-- **`src.category_rankings`** - Generate 10×9 rankings matrix showing each team's rank in all 9 stat categories
+- **`src.show_matchups`** - Display all 5 matchups with mid-week category scores (supports --week and --format parameters)
+- **`src.category_rankings`** - Generate 10×9 rankings matrix showing each team's rank in all 9 stat categories (supports --week parameter)
+- **`src.possibility_matrix`** - Generate full N×N possibility matrix showing all possible matchup results (supports --week parameter)
+- **`src.predict_matchups`** - Predict matchup results using historical data (--method: last, last3, total; --week parameter)
 
 #### API Exploration (Development)
 - **`src.explore_api`** - Inspect available API data structures
@@ -178,12 +191,16 @@ python -m src.show_matchups --help
 make matchups              # See your matchup prediction (detailed)
 make matchups FORMAT=simple # Quick score-only view
 make rankings              # See league-wide category rankings
-make all                   # Run both
+make possibility           # See all possible matchup results (NxN matrix)
+make predict              # Predict using last week's data
+make all                   # Run all main tools
 
 # Analyze a specific week
 make matchups WEEK=5       # Week 5 matchups
 make rankings WEEK=5       # Week 5 rankings
-make all WEEK=5            # Both for week 5
+make possibility WEEK=4    # Week 4 possibility matrix
+make predict WEEK=5 METHOD=last3  # Predict week 5 using last 3 weeks
+make all WEEK=5            # All tools for week 5
 
 # OR use Python directly
 python -m src.show_matchups
