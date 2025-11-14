@@ -97,7 +97,30 @@ Inspired by the "Possibility Matrix" Excel approach (see [info.md](info.md)), th
 
 ## Usage
 
-All scripts are run as Python modules from the project root:
+### Quick Commands (Recommended)
+
+The easiest way to run the main tools is via the Makefile:
+
+```bash
+# Show category rankings (10x9 matrix)
+make rankings
+
+# Show current matchup predictions
+make matchups
+
+# Run both rankings and matchups
+make all
+
+# First-time setup
+make auth
+
+# See all available commands
+make help
+```
+
+### Direct Python Execution
+
+All scripts can also be run as Python modules from the project root:
 
 ```bash
 python -m src.<script_name>
@@ -121,10 +144,13 @@ python -m src.<script_name>
 ### Example Workflow
 
 ```bash
-# Check current week's matchups
-python -m src.show_matchups
+# Quick analysis of current week
+make matchups     # See your matchup prediction
+make rankings     # See league-wide category rankings
+make all          # Run both
 
-# View league-wide category rankings
+# OR use Python directly
+python -m src.show_matchups
 python -m src.category_rankings
 ```
 
