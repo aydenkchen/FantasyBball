@@ -1,8 +1,15 @@
 """Display current week's matchups with mid-week scores.
 
 Usage:
-    python -m src.show_matchups
+    python -m src.show_matchups [--week WEEK_NUM] [--format FORMAT]
+
+Examples:
+    python -m src.show_matchups                    # Current week, detailed view
+    python -m src.show_matchups --week 5           # Specific week
+    python -m src.show_matchups --format simple    # Simple score-only view
+    python -m src.show_matchups -w 3 -f simple     # Week 3, simple view
 """
+import argparse
 from yahoo_oauth import OAuth2
 import yahoo_fantasy_api as yfa
 
@@ -119,7 +126,7 @@ def compare_stats(team1_stats, team2_stats):
     return team1_wins, team2_wins, results
 
 
-def display_matchup(matchup_num, matchup_dict):
+def display_matchup(matchup_num, matchup_dict, format_type='detailed'):
     """Display a single matchup with scores."""
     # Navigate to teams
     teams = matchup_dict['matchup']['0']['teams']
@@ -137,40 +144,71 @@ def display_matchup(matchup_num, matchup_dict):
     # Compare stats
     team1_wins, team2_wins, results = compare_stats(team1_stats, team2_stats)
 
-    # Display header
-    print("=" * 100)
-    print(f"MATCHUP {matchup_num}")
-    print(f"{team1_name} vs {team2_name}")
-    print(f"Score: {team1_wins}-{team2_wins}")
-    print("=" * 100)
+    if format_type == 'simple':
+        # Simple format: just show score
+        winner_text = ""
+        if team1_wins > team2_wins:
+            winner_text = f" ({team1_name[:20]} wins)"
+        elif team2_wins > team1_wins:
+            winner_text = f" ({team2_name[:20]} wins)"
+        else:
+            winner_text = " (Tied)"
 
-    # Display category breakdown
-    name1_short = team1_name[:25]
-    name2_short = team2_name[:25]
-    print(f"{'Category':<10} {name1_short:<27} {name2_short:<27} {'Winner':<10}")
-    print("-" * 100)
+        print(f"{matchup_num}. {team1_name[:30]:<30} {team1_wins}-{team2_wins} {team2_name[:30]:<30}{winner_text}")
+    else:
+        # Detailed format: show all categories
+        # Display header
+        print("=" * 100)
+        print(f"MATCHUP {matchup_num}")
+        print(f"{team1_name} vs {team2_name}")
+        print(f"Score: {team1_wins}-{team2_wins}")
+        print("=" * 100)
 
-    for display_name, val1, val2, winner in results:
-        val1_str = f"{val1}" if val1 != 'N/A' else 'N/A'
-        val2_str = f"{val2}" if val2 != 'N/A' else 'N/A'
+        # Display category breakdown
+        name1_short = team1_name[:25]
+        name2_short = team2_name[:25]
+        print(f"{'Category':<10} {name1_short:<27} {name2_short:<27} {'Winner':<10}")
+        print("-" * 100)
 
-        print(f"{display_name:<10} {val1_str:<27} {val2_str:<27} {winner:<10}")
+        for display_name, val1, val2, winner in results:
+            val1_str = f"{val1}" if val1 != 'N/A' else 'N/A'
+            val2_str = f"{val2}" if val2 != 'N/A' else 'N/A'
 
-    print()
+            print(f"{display_name:<10} {val1_str:<27} {val2_str:<27} {winner:<10}")
+
+        print()
 
 
 def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description='Display matchup predictions with mid-week scores'
+    )
+    parser.add_argument(
+        '--week', '-w',
+        type=int,
+        default=None,
+        help='Week number (default: current week)'
+    )
+    parser.add_argument(
+        '--format', '-f',
+        choices=['simple', 'detailed'],
+        default='detailed',
+        help='Output format: simple (scores only) or detailed (with categories)'
+    )
+    args = parser.parse_args()
+
     # Authenticate
     sc = OAuth2(None, None, from_file='oauth2.json')
     gm = yfa.Game(sc, 'nba')
     league_id = '466.l.51741'
     lg = gm.to_league(league_id)
 
-    # Get current week
-    current_week = lg.current_week()
+    # Get week to analyze
+    week = args.week if args.week else lg.current_week()
 
-    # Get matchups for current week
-    raw_matchups = lg.matchups(week=current_week)
+    # Get matchups for specified week
+    raw_matchups = lg.matchups(week=week)
 
     # Navigate to the actual matchups data
     league_data = raw_matchups['fantasy_content']['league']
@@ -178,21 +216,22 @@ def main():
     matchups_container = scoreboard['0']['matchups']
 
     print(f"\n{'=' * 100}")
-    print(f"WEEK {current_week} - MID-WEEK MATCHUP SCORES")
+    print(f"WEEK {week} - MID-WEEK MATCHUP SCORES")
     print(f"{'=' * 100}\n")
 
     # Display each matchup (0, 1, 2, 3, 4 for 5 matchups)
     matchup_count = int(matchups_container['count'])
     for i in range(matchup_count):
         matchup_data = matchups_container[str(i)]
-        display_matchup(i + 1, matchup_data)
+        display_matchup(i + 1, matchup_data, args.format)
 
-    print("=" * 100)
-    print("Legend:")
-    print("  ← = Left team winning this category")
-    print("  → = Right team winning this category")
-    print("  TO (Turnovers): Lower is better")
-    print("=" * 100)
+    if args.format == 'detailed':
+        print("=" * 100)
+        print("Legend:")
+        print("  ← = Left team winning this category")
+        print("  → = Right team winning this category")
+        print("  TO (Turnovers): Lower is better")
+        print("=" * 100)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,13 @@
 """Display category rankings matrix - each team's rank (1-10) in each stat category.
 
 Usage:
-    python -m src.category_rankings
+    python -m src.category_rankings [--week WEEK_NUM]
+
+Examples:
+    python -m src.category_rankings              # Current week
+    python -m src.category_rankings --week 5     # Specific week
 """
+import argparse
 from yahoo_oauth import OAuth2
 import yahoo_fantasy_api as yfa
 
@@ -242,17 +247,29 @@ def analyze_category_strengths(rankings):
 
 
 def main():
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description='Display category rankings matrix for all teams'
+    )
+    parser.add_argument(
+        '--week', '-w',
+        type=int,
+        default=None,
+        help='Week number (default: current week)'
+    )
+    args = parser.parse_args()
+
     # Authenticate
     sc = OAuth2(None, None, from_file='oauth2.json')
     gm = yfa.Game(sc, 'nba')
     league_id = '466.l.51741'
     lg = gm.to_league(league_id)
 
-    # Get current week
-    current_week = lg.current_week()
+    # Get week to analyze
+    week = args.week if args.week else lg.current_week()
 
-    # Get matchups for current week
-    raw_matchups = lg.matchups(week=current_week)
+    # Get matchups for specified week
+    raw_matchups = lg.matchups(week=week)
 
     # Navigate to the actual matchups data
     league_data = raw_matchups['fantasy_content']['league']
@@ -266,10 +283,10 @@ def main():
     rankings = rank_teams_by_category(teams)
 
     # Display rankings matrix
-    display_rankings_matrix(teams, rankings, current_week)
+    display_rankings_matrix(teams, rankings, week)
 
     # Display detailed rankings
-    display_detailed_rankings(teams, rankings, current_week)
+    display_detailed_rankings(teams, rankings, week)
 
     # Analyze strengths/weaknesses
     analyze_category_strengths(rankings)

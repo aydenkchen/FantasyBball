@@ -118,12 +118,42 @@ make auth
 make help
 ```
 
+#### Using Parameters
+
+You can specify week numbers and output formats:
+
+```bash
+# Specific week
+make matchups WEEK=5
+make rankings WEEK=3
+
+# Simple matchup view (scores only, no category breakdown)
+make matchups FORMAT=simple
+
+# Combine parameters
+make matchups WEEK=4 FORMAT=simple
+make all WEEK=5
+
+# See more examples
+make help
+```
+
 ### Direct Python Execution
 
 All scripts can also be run as Python modules from the project root:
 
 ```bash
+# Basic usage
 python -m src.<script_name>
+
+# With parameters
+python -m src.category_rankings --week 5
+python -m src.show_matchups --week 3 --format simple
+python -m src.show_matchups -w 4 -f detailed
+
+# Get help for any script
+python -m src.category_rankings --help
+python -m src.show_matchups --help
 ```
 
 ### Available Tools
@@ -145,13 +175,20 @@ python -m src.<script_name>
 
 ```bash
 # Quick analysis of current week
-make matchups     # See your matchup prediction
-make rankings     # See league-wide category rankings
-make all          # Run both
+make matchups              # See your matchup prediction (detailed)
+make matchups FORMAT=simple # Quick score-only view
+make rankings              # See league-wide category rankings
+make all                   # Run both
+
+# Analyze a specific week
+make matchups WEEK=5       # Week 5 matchups
+make rankings WEEK=5       # Week 5 rankings
+make all WEEK=5            # Both for week 5
 
 # OR use Python directly
 python -m src.show_matchups
-python -m src.category_rankings
+python -m src.show_matchups --week 3 --format simple
+python -m src.category_rankings --week 5
 ```
 
 ---
