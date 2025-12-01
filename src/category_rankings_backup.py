@@ -1,14 +1,11 @@
 """Display category rankings matrix - each team's rank (1-10) in each stat category.
 
 Usage:
-    python -m src.category_rankings [--week WEEK_NUM] [--range RANGE_TYPE]
+    python -m src.category_rankings [--week WEEK_NUM]
 
 Examples:
-    python -m src.category_rankings                    # Current week
-    python -m src.category_rankings --week 5           # Specific week
-    python -m src.category_rankings --range last3      # Last 3 weeks average
-    python -m src.category_rankings --range total      # Season total average
-    python -m src.category_rankings --week 8 --range last3  # Weeks 6-8 average
+    python -m src.category_rankings              # Current week
+    python -m src.category_rankings --week 5     # Specific week
 """
 import argparse
 from yahoo_oauth import OAuth2
@@ -69,174 +66,6 @@ def get_team_name(team_data):
             return item['name']
 
     return "Unknown Team"
-
-
-def get_team_key(team_data):
-    """Extract team key from team data."""
-    if not isinstance(team_data, list) or len(team_data) < 1:
-        return None
-
-    metadata = team_data[0]
-    if not isinstance(metadata, list):
-        return None
-
-    for item in metadata:
-        if isinstance(item, dict) and 'team_key' in item:
-            return item['team_key']
-
-    return None
-
-
-def get_historical_stats(lg, team_key, weeks):
-    """Get stats for a team across multiple weeks.
-
-    Args:
-        lg: League object
-        team_key: Team key string
-        weeks: List of week numbers
-
-    Returns:
-        List of stat dictionaries, one per week
-    """
-    weekly_stats = []
-
-    for week in weeks:
-        try:
-            raw_matchups = lg.matchups(week=week)
-            league_data = raw_matchups['fantasy_content']['league']
-            scoreboard = league_data[1]['scoreboard']
-            matchups_container = scoreboard['0']['matchups']
-
-            # Extract all teams from this week
-            matchup_count = int(matchups_container['count'])
-            for i in range(matchup_count):
-                matchup_data = matchups_container[str(i)]
-                matchup_teams = matchup_data['matchup']['0']['teams']
-
-                for team_idx in ['0', '1']:
-                    team_data = matchup_teams[team_idx]['team']
-                    key = get_team_key(team_data)
-
-                    if key == team_key:
-                        stats = parse_team_stats(team_data)
-                        processed_stats = {}
-                        for stat_key, stat_value in stats.items():
-                            if stat_key in ['fg_pct', 'ft_pct', '3ptm', 'pts', 'reb', 'ast', 'st', 'blk', 'to']:
-                                if stat_value and stat_value.strip():
-                                    try:
-                                        processed_stats[stat_key] = float(stat_value)
-                                    except ValueError:
-                                        processed_stats[stat_key] = 0.0
-                                else:
-                                    processed_stats[stat_key] = 0.0
-                        weekly_stats.append(processed_stats)
-                        break
-        except Exception as e:
-            print(f"Warning: Could not fetch week {week}: {e}")
-            continue
-
-    return weekly_stats if weekly_stats else None
-
-
-def average_stats(stats_list):
-    """Average multiple stat dictionaries.
-
-    Args:
-        stats_list: List of stat dictionaries
-
-    Returns:
-        Dictionary with averaged stats
-    """
-    if not stats_list:
-        return {}
-
-    # Get all stat keys from first dict
-    stat_keys = stats_list[0].keys()
-
-    averaged = {}
-    for key in stat_keys:
-        values = [stats.get(key, 0.0) for stats in stats_list]
-        averaged[key] = sum(values) / len(values) if values else 0.0
-
-    return averaged
-
-
-def extract_teams_with_range(lg, current_week, range_type):
-    """Extract teams with stats based on range type.
-
-    Args:
-        lg: League object
-        current_week: Current/ending week number
-        range_type: 'last3', 'total', or None for single week
-
-    Returns:
-        Dictionary of {team_name: stats_dict}
-    """
-    teams = {}
-
-    # Determine which weeks to fetch
-    if range_type == 'last3':
-        weeks = list(range(max(1, current_week - 2), current_week + 1))
-        print(f"Fetching weeks: {weeks}")
-    elif range_type == 'total':
-        weeks = list(range(1, current_week + 1))
-        print(f"Fetching weeks: 1-{current_week}")
-    else:
-        # Single week - use existing logic
-        try:
-            raw_matchups = lg.matchups(week=current_week)
-            league_data = raw_matchups['fantasy_content']['league']
-            scoreboard = league_data[1]['scoreboard']
-            matchups_container = scoreboard['0']['matchups']
-            return extract_all_teams(matchups_container)
-        except Exception as e:
-            print(f"Error fetching week {current_week} data: {e}")
-            return {}
-
-    # Get all team keys from current week matchups
-    try:
-        raw_matchups = lg.matchups(week=current_week)
-        league_data = raw_matchups['fantasy_content']['league']
-        scoreboard = league_data[1]['scoreboard']
-        matchups_container = scoreboard['0']['matchups']
-
-        matchup_count = int(matchups_container['count'])
-        team_keys = []
-        team_names = {}
-
-        for i in range(matchup_count):
-            matchup_data = matchups_container[str(i)]
-            matchup_teams = matchup_data['matchup']['0']['teams']
-
-            for team_idx in ['0', '1']:
-                team_data = matchup_teams[team_idx]['team']
-                team_name = get_team_name(team_data)
-                team_key = get_team_key(team_data)
-                if team_key:
-                    team_keys.append(team_key)
-                    team_names[team_key] = team_name
-
-        print(f"Found {len(team_keys)} teams")
-
-        # Fetch historical stats for each team
-        for team_key in team_keys:
-            team_name = team_names.get(team_key, "Unknown Team")
-            print(f"Fetching stats for {team_name}...")
-
-            stats_list = get_historical_stats(lg, team_key, weeks)
-
-            if stats_list:
-                # Average the stats
-                averaged_stats = average_stats(stats_list)
-                teams[team_name] = averaged_stats
-            else:
-                print(f"Warning: No stats found for {team_name}")
-
-    except Exception as e:
-        print(f"Error fetching team data: {e}")
-        return {}
-
-    return teams
 
 
 def extract_all_teams(matchups_container):
@@ -316,10 +145,10 @@ def calculate_average_rank(team_rankings):
     return avg_ranks
 
 
-def display_rankings_matrix(teams, rankings, label):
+def display_rankings_matrix(teams, rankings, week):
     """Display the 10x9 rankings matrix."""
     print(f"\n{'=' * 110}")
-    print(f"{label} - CATEGORY RANKINGS MATRIX (1=Best, 10=Worst)")
+    print(f"WEEK {week} - CATEGORY RANKINGS MATRIX (1=Best, 10=Worst)")
     print(f"{'=' * 110}")
 
     # Header
@@ -362,10 +191,10 @@ def display_rankings_matrix(teams, rankings, label):
     print("=" * 110)
 
 
-def display_detailed_rankings(teams, rankings, label):
+def display_detailed_rankings(teams, rankings, week):
     """Display rankings with actual stat values."""
     print(f"\n{'=' * 130}")
-    print(f"{label} - DETAILED CATEGORY RANKINGS")
+    print(f"WEEK {week} - DETAILED CATEGORY RANKINGS")
     print(f"{'=' * 130}")
 
     categories = [
@@ -434,14 +263,7 @@ def main():
         '--week', '-w',
         type=int,
         default=None,
-        help='Week number (default: current week). Only useful for historical analysis or with --range last3.'
-    )
-    parser.add_argument(
-        '--range',
-        type=str,
-        choices=['last3', 'total'],
-        default=None,
-        help='Range type: last3=last 3 weeks avg ending at week, total=all weeks up to current (default: single week)'
+        help='Week number (default: current week)'
     )
     args = parser.parse_args()
 
@@ -452,36 +274,31 @@ def main():
     lg = gm.to_league(league_id)
 
     # Get week to analyze
-    week = args.week if args.week else lg.current_week()
-
-    # Determine range type and fetch data
-    if args.range:
-        if args.range == 'last3':
-            range_desc = f'Last 3 Weeks Average (ending Week {week})'
-            print(f"Fetching data: {range_desc}")
-            display_label = range_desc
-        else:  # total
-            range_desc = f'Season Average (All Weeks Through Week {week})'
-            print(f"Fetching data: {range_desc}")
-            display_label = range_desc
-
-        teams = extract_teams_with_range(lg, week, args.range)
+    if args.week is None:
+        week = lg.current_week()
+        print(f"No week specified, using current week: {week}")
     else:
-        print(f"Fetching data for Week {week}")
-        try:
-            raw_matchups = lg.matchups(week=week)
-            league_data = raw_matchups['fantasy_content']['league']
-            scoreboard = league_data[1]['scoreboard']
-            matchups_container = scoreboard['0']['matchups']
-            teams = extract_all_teams(matchups_container)
-            display_label = f"Week {week}"
-        except Exception as e:
-            print(f"Error fetching week {week} data: {e}")
-            print("Try a different week number.")
-            return
+        week = args.week
+        print(f"Fetching data for Week {week}...")
+
+    # Get matchups for specified week
+    try:
+        raw_matchups = lg.matchups(week=week)
+    except Exception as e:
+        print(f"Error fetching week {week} data: {e}")
+        print("Try a different week number.")
+        return
+
+    # Navigate to the actual matchups data
+    league_data = raw_matchups['fantasy_content']['league']
+    scoreboard = league_data[1]['scoreboard']
+    matchups_container = scoreboard['0']['matchups']
+
+    # Extract all 10 teams
+    teams = extract_all_teams(matchups_container)
 
     if not teams or len(teams) == 0:
-        print(f"No data found. The week may not have started yet or no stats available.")
+        print(f"No data found for Week {week}. The week may not have started yet.")
         return
 
     print(f"Found {len(teams)} teams with data.\n")
@@ -490,10 +307,10 @@ def main():
     rankings = rank_teams_by_category(teams)
 
     # Display rankings matrix
-    display_rankings_matrix(teams, rankings, display_label)
+    display_rankings_matrix(teams, rankings, week)
 
     # Display detailed rankings
-    display_detailed_rankings(teams, rankings, display_label)
+    display_detailed_rankings(teams, rankings, week)
 
     # Analyze strengths/weaknesses
     analyze_category_strengths(rankings)
